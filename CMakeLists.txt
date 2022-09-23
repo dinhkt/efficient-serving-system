@@ -12,6 +12,6 @@ add_executable(infer infer.cpp include/base64.cc include/imageutils.cc )
 target_link_libraries(infer "${TORCH_LIBRARIES}" ${OpenCV_LIBS} rt)
 
 add_executable(server server.cpp include/IPManager.cc)
-target_link_libraries(server rt ${Boost_LIBRARIES} )
+target_link_libraries(server "${TORCH_LIBRARIES}" rt ${Boost_LIBRARIES} )
 
-set_property(TARGET server PROPERTY CXX_STANDARD 14)
+set_property(TARGET server infer PROPERTY CXX_STANDARD 14)

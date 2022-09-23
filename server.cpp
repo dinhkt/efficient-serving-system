@@ -68,4 +68,9 @@ int main() {
     });
     app.port(PORT).run();
     return EXIT_SUCCESS;
+    
+    atomic<int> ip_pid;
+    while ((ip_pid = wait(nullptr)) > 0){
+        cout << "Inference Process " << ip_pid << " terminated" << endl;
+    }
 }

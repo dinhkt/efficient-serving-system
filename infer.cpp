@@ -38,6 +38,7 @@ int main(int argc, const char* argv[]) {
     {"vgg16","../model_dir/vgg16.pt"},
     {"vgg19","../model_dir/vgg19.pt"}
   };
+
   int GPUid=atoi(argv[3]);
   string device_string="cuda:"+to_string(GPUid);
   c10::InferenceMode guard;

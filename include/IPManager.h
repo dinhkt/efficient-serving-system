@@ -3,6 +3,8 @@
 
 #include <boost/interprocess/shared_memory_object.hpp>
 #include <boost/interprocess/mapped_region.hpp>
+#include <torch/cuda.h>
+#include <ATen/cuda/CUDAEvent.h>
 #include <iostream>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -55,6 +57,8 @@ public:
     unordered_map<string,vector<InferenceProcess>> model_map; 
     unordered_map<std::string,unordered_map<int,float>> profiler;
     bool running=false;
+    int n_GPU=0;
+    vector<int> GPUresources;
 
     void run();
     void createInferenceProcess(string model_name, int ip_id,int SLO);

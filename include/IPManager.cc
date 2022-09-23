@@ -6,6 +6,12 @@ using namespace boost::interprocess;
 
 void IPManager::run(){
     running=true;
+    // info of GPUs resources available
+    n_GPU=at::cuda::device_count();
+    for (int i=0;i<n_GPU;i++){
+        GPUresources.push_back(100);
+    }
+    cout<<"System has "<<n_GPU<<" GPU"<<endl;
     boost::thread th(&IPManager::IPsTimer, this);
     
     string row;
@@ -33,10 +39,6 @@ void IPManager::run(){
         return;
     }
     
-    atomic<int> ip_pid;
-    while ((ip_pid = wait(nullptr)) > 0){
-        cout << "Inference Process " << ip_pid << " terminated" << endl;
-    }
 }
 void IPManager::IPsTimer(){
     while (true){
@@ -52,6 +54,7 @@ void IPManager::IPsTimer(){
                             [i](const InferenceProcess& ip) {return ip.ip_id==i;});
             string model=p->model;
             kill(p->pid,SIGTERM);
+            GPUresources[p->allocatedGPU]+=p->pGPU;
             atomic<int> ip_pid;
             while ((ip_pid = waitpid(p->pid,NULL,0)) > 0){
                 cout << "Inference Process " << ip_pid << " terminated due to timeout" << endl;
@@ -206,5 +209,20 @@ int IPManager::getOptGPUpercentage(string model_name,int slo){
     return minp;
 };
 int IPManager::chooseGPU(int pGPU){
-    return 0;
+    int chosen=-1;
+    int minG=101;
+    //choose best fit GPU for the pGPU demand
+    for (int i=0;i<n_GPU;i++){
+        if (GPUresources[i]>=pGPU && GPUresources[i]<minG){
+            chosen=i;
+            minG=GPUresources[i];
+        }
+    }
+    if (chosen==-1){
+        cout<<"No GPU found, just insert IP to the most free GPU"<<endl;
+        chosen=distance(GPUresources.begin(),max_element(GPUresources.begin(),GPUresources.end()));
+    }
+    int available_resources=GPUresources[chosen]-pGPU;
+    GPUresources[chosen]=(available_resources>0) ? available_resources:0;
+    return chosen;
 };
