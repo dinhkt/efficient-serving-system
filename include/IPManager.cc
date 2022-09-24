@@ -81,7 +81,9 @@ IPManager::~IPManager(){
         kill(ip_list[i].pid, SIGTERM);
     }
     atomic<int> ip_pid;
-    while ((ip_pid = wait(nullptr)) > 0);
+    while ((ip_pid = wait(nullptr)) > 0){
+        cout << "Inference Process " << ip_pid << " terminated" << endl;
+    }
     shared_memory_object::remove("sharedBuf");
     _exit(EXIT_SUCCESS);
 }
@@ -133,8 +135,15 @@ void IPManager::createInferenceProcess(string model_name, int ip_id,int SLO){
 int IPManager::infer(void* mem_addr,string base64_image, int ip_id){
     ipidTimer[ip_id]=chrono::steady_clock::now();       // update timer for this IP
     void* ip_addr=mem_addr+MEM_BLOCK*ip_id;     //determine shared memory address belong to IP
+    // Decode image, preprocess and write to shared memory
+    string decoded_image = base64_decode(base64_image);
+    vector<uchar> image_data(decoded_image.begin(), decoded_image.end());
+    cv::Mat image = cv::imdecode(image_data, cv::IMREAD_UNCHANGED);
+    image = preprocess(image, image_height, image_width, mean, std);
+    // 
     ip_locks[ip_id].lock();
-    memcpy(ip_addr,base64_image.c_str(),base64_image.length());    
+    memcpy(ip_addr+1,image.data,image.total() * image.elemSize());  
+    memset(ip_addr,1,1);                        // set marker byte=1  
     char* running=static_cast<char*>(ip_addr); 
     while (*running);                           // if marker byte ==0, then inference is finished.
     char *_v1=static_cast<char*>(ip_addr)+1;    // get 2 bytes of result
@@ -222,7 +231,7 @@ int IPManager::chooseGPU(int pGPU){
         cout<<"No GPU found, just insert IP to the most free GPU"<<endl;
         chosen=distance(GPUresources.begin(),max_element(GPUresources.begin(),GPUresources.end()));
     }
-    int available_resources=GPUresources[chosen]-pGPU;
-    GPUresources[chosen]=(available_resources>0) ? available_resources:0;
+    GPUresources[chosen]=GPUresources[chosen]-pGPU;
+    // GPUresources[chosen]=(available_resources>0) ? available_resources:0;
     return chosen;
 };

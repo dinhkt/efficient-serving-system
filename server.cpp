@@ -4,19 +4,10 @@
 
 using namespace std;
 using namespace boost::interprocess;
-int main() {
-    // Create SharedMemory Buffer to share between main process and launched inference processes 
-    char sm_file[50]="sharedBuf";
-    shared_memory_object shm (open_or_create, sm_file, read_write);
-    shm.truncate(NIP_MAX*MEM_BLOCK);
-    mapped_region region(shm, read_write);
-    void *sharedMemAddr= region.get_address();
-    memset(sharedMemAddr,0, region.get_size());
 
-    // Read label for classification
-    std::vector<std::string> labels;
-    std::string label;
-    std::ifstream labelsfile ("../labels.txt");
+void readImageNetlabels(vector<string> &labels,const char* labels_path){
+    string label;
+    ifstream labelsfile (labels_path);
     if (labelsfile.is_open())
     {
         while (getline(labelsfile, label))
@@ -25,11 +16,23 @@ int main() {
         }
         labelsfile.close();
     }
-    else{
+}
+
+int main() {
+    // Read label for image classification
+    vector<string> labels;
+    readImageNetlabels(labels,"../labels.txt");
+    if (labels.size()==0){
         cout<<"Labels file not found"<<endl;
         return EXIT_FAILURE;
     }
 
+    // Create SharedMemory Buffer to share between main process and launched inference processes 
+    shared_memory_object shm (open_or_create, "sharedBuf", read_write);
+    shm.truncate(NIP_MAX*MEM_BLOCK);
+    mapped_region region(shm, read_write);
+    void *sharedMemAddr= region.get_address();
+    memset(sharedMemAddr,0, region.get_size());
     // Create Inference Process Manager
     IPManager IPMgr;
     IPMgr.run();
@@ -48,7 +51,7 @@ int main() {
             string base64_image = args["image"].s();
             string model_name = args["model"].s();
             int SLO = args["slo"].i();
-            cout<<"Received request for "<<model_name<<","<<SLO<<endl;
+            cout<<"Received request for "<<model_name<<",slo="<<SLO<<endl;
             int pred=IPMgr.handle(sharedMemAddr,base64_image,model_name,SLO);
             if (pred!=-1){
                 result["Prediction"] = labels[pred];
@@ -69,8 +72,4 @@ int main() {
     app.port(PORT).run();
     return EXIT_SUCCESS;
     
-    atomic<int> ip_pid;
-    while ((ip_pid = wait(nullptr)) > 0){
-        cout << "Inference Process " << ip_pid << " terminated" << endl;
-    }
 }

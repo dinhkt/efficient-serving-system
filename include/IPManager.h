@@ -21,6 +21,8 @@
 #include <chrono>
 #include<fstream>
 #include <sstream>
+#include "imageutils.h"
+#include "base64.h"
 
 #define MEM_BLOCK 1000000        // Memory block size for each inference process
 #define PORT 8081       
@@ -45,6 +47,11 @@ private:
     boost::mutex search_lock;
     int time_out=TIMEOUT;
     unordered_map<int,chrono::steady_clock::time_point> ipidTimer;
+    // Preprocess params
+    int image_height = 224;
+    int image_width = 224; 
+    std::vector<double> mean = {0.485, 0.456, 0.406};
+    std::vector<double> std = {0.229, 0.224, 0.225};
 
     pid_t spawnProcess(char** arg_list, char** env);
     void IPsTimer();

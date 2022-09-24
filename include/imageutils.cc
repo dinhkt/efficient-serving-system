@@ -74,6 +74,7 @@ cv::Mat preprocess(cv::Mat image, int new_height, int new_width,
   return image_proc;
 }
 
+
 // Convert a vector of images to torch Tensor
 torch::Tensor convert_images_to_tensor(std::vector<cv::Mat> images) {
 
@@ -158,11 +159,3 @@ std::vector<float> get_outputs(torch::Tensor output) {
   return probs;
 }
 
-
-//Postprocess
-std::tuple<int, float> postprocess(std::vector<float> probs) {
-  auto prob = std::max_element(probs.begin(), probs.end());
-  auto label_idx = std::distance(probs.begin(), prob);
-  float prob_float = *prob;
-  return std::make_tuple(label_idx, prob_float);
-}

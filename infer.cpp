@@ -12,11 +12,10 @@
 #include <ATen/cuda/CUDAEvent.h>
 #include <torch/cuda.h>
 #include <stdio.h>
-#include "include/imageutils.h"
-#include "include/base64.h"
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include "include/imageutils.h"
 
 #define MEM_BLOCK 1000000
 using namespace std;
@@ -63,11 +62,10 @@ int main(int argc, const char* argv[]) {
   // static_out=model.forward({static_inp}).toTensor();
   // g.capture_end();
   
-  // Preprocess params
   int image_height = 224;
   int image_width = 224; 
-  std::vector<double> mean = {0.485, 0.456, 0.406};
-  std::vector<double> std = {0.229, 0.224, 0.225};
+  vector<int64_t> dims = {1, image_height, image_width, 3};
+  vector<int64_t> permute_dims = {0, 3, 1, 2};
   // CUDA Timer
   auto start=at::cuda::CUDAEvent(true);
   auto end=at::cuda::CUDAEvent(true);
@@ -77,21 +75,19 @@ int main(int argc, const char* argv[]) {
     if (*mem==0)
         continue;
     else{      
-        // Read Image data from shared memory
-        std::string base64_image(mem,MEM_BLOCK);
-        std::string decoded_image = base64_decode(base64_image);
-        std::vector<uchar> image_data(decoded_image.begin(), decoded_image.end());
-        cv::Mat image = cv::imdecode(image_data, cv::IMREAD_UNCHANGED);
-        // Preprocess image
-        image = preprocess(image, image_height, image_width, mean, std);
-        // Forward
-        torch::Tensor tensor = convert_images_to_tensor({image,});
-        torch::Tensor output = model.forward({tensor.to(device_string)}).toTensor();
-        std::vector<float> probs = get_outputs(output.to(at::kCPU));
-        // Postprocess
-        int pred;
-        float prob;
-        tie(pred, prob) = postprocess(probs);
+        // Read Image data from shared memory to tensor
+        torch::Tensor input_tensor;
+        torch::TensorOptions options(torch::kFloat32);
+        input_tensor = torch::from_blob(mem+1, torch::IntList(dims), options);
+        input_tensor = input_tensor.permute(torch::IntList(permute_dims));
+        input_tensor = input_tensor.toType(torch::kFloat32);
+        // start.record();
+        torch::Tensor output = model.forward({input_tensor.to(device_string)}).toTensor();
+        // end.record();
+        // torch::cuda::synchronize();
+        // cout<<"Inference time:"<<start.elapsed_time(end)<<"ms \n";
+        vector<float> probs = get_outputs(output.to(at::kCPU));
+        int pred=distance(probs.begin(),max_element(probs.begin(), probs.end()));
         // Write result to sharedBuf
         memset(mem+1,pred & 0xff,1);
         memset(mem+2,(pred >> 8) & 0xff,1);

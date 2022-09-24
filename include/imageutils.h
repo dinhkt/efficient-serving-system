@@ -23,7 +23,6 @@
 cv::Mat preprocess(cv::Mat, int, int,
   std::vector<double>,
   std::vector<double>);
-std::tuple<int, float> postprocess(std::vector<float>);
 torch::Tensor convert_images_to_tensor(std::vector<cv::Mat> images);
 std::vector<float> get_outputs(torch::Tensor output);
 

@@ -8,10 +8,10 @@ include_directories(${Boost_INCLUDE_DIR})
 find_package (OpenCV  REQUIRED)
 include_directories (${OpenCV_INCLUDE_DIRS})
 
-add_executable(infer infer.cpp include/base64.cc include/imageutils.cc )
+add_executable(infer infer.cpp include/imageutils.cc)
 target_link_libraries(infer "${TORCH_LIBRARIES}" ${OpenCV_LIBS} rt)
 
-add_executable(server server.cpp include/IPManager.cc)
-target_link_libraries(server "${TORCH_LIBRARIES}" rt ${Boost_LIBRARIES} )
+add_executable(server server.cpp include/IPManager.cc include/base64.cc include/imageutils.cc)
+target_link_libraries(server "${TORCH_LIBRARIES}" rt ${Boost_LIBRARIES} ${OpenCV_LIBS} )
 
 set_property(TARGET server infer PROPERTY CXX_STANDARD 14)
