@@ -1,3 +1,5 @@
 .vscode/
 build/*
 model_dir/*.pt
+model_dir/*.onnx
+test_tensorrt/*

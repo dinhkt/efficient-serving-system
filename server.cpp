@@ -18,7 +18,7 @@ void readImageNetlabels(vector<string> &labels,const char* labels_path){
     }
 }
 
-int main() {
+int main(int argc, const char* argv[]) {
     // Read label for image classification
     vector<string> labels;
     readImageNetlabels(labels,"../labels.txt");
@@ -35,8 +35,11 @@ int main() {
     memset(sharedMemAddr,0, region.get_size());
     // Create Inference Process Manager
     IPManager IPMgr;
+    if (strcmp(argv[1],"tcpp")==0)
+        IPMgr.setInferType(0);
+    else if (strcmp(argv[1],"trt")==0)
+        IPMgr.setInferType(1);
     IPMgr.run();
-    
     //REST API by Crow 
     crow::SimpleApp app;
     CROW_ROUTE(app, "/predict").methods("POST"_method, "GET"_method)

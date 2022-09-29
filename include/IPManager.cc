@@ -75,18 +75,7 @@ void IPManager::IPsTimer(){
         sleep(1);
     }
 }
-IPManager::~IPManager(){
-    // Kill all Inference Processes
-    for (int i = 0; i < ip_list.size(); ++i) {
-        kill(ip_list[i].pid, SIGTERM);
-    }
-    atomic<int> ip_pid;
-    while ((ip_pid = wait(nullptr)) > 0){
-        cout << "Inference Process " << ip_pid << " terminated" << endl;
-    }
-    shared_memory_object::remove("sharedBuf");
-    _exit(EXIT_SUCCESS);
-}
+
 
 pid_t IPManager::spawnProcess(char** arg_list, char** env)
 {
@@ -98,7 +87,10 @@ pid_t IPManager::spawnProcess(char** arg_list, char** env)
         // cout << "spawn inference process with pid - " << ch_pid << endl;
         return ch_pid;
     } else {
-        execve("infer", arg_list, env);
+        if (InferType==0)
+            execve("infer", arg_list, env);
+        else if (InferType==1)
+            execve("infer_trt", arg_list, env);
         perror("execve");
         exit(EXIT_FAILURE);
     }
@@ -117,7 +109,12 @@ void IPManager::createInferenceProcess(string model_name, int ip_id,int SLO){
     strcpy(_model_name,model_name.c_str());
     char _gpuid[2];
     strcpy(_gpuid,to_string(GPUid).c_str());
-    char* args_list[]={"infer",_model_name,ipid_str,_gpuid,NULL};
+    char infer_type[10];
+    if (InferType==0)
+        strcpy(infer_type,"infer");
+    else if (InferType==1)
+        strcpy(infer_type,"infer_trt");
+    char* args_list[]={infer_type,_model_name,ipid_str,_gpuid,NULL};
     cout<<"Create Inference Process "<<ip_id<<" on GPU"<<GPUid<< " with "<<pGPU<<"%"<<endl;
     struct InferenceProcess new_ip; 
     new_ip.ip_id=ip_id;
@@ -140,7 +137,7 @@ int IPManager::infer(void* mem_addr,string base64_image, int ip_id){
     vector<uchar> image_data(decoded_image.begin(), decoded_image.end());
     cv::Mat image = cv::imdecode(image_data, cv::IMREAD_UNCHANGED);
     image = preprocess(image, image_height, image_width, mean, std);
-    // 
+    // inference
     ip_locks[ip_id].lock();
     memcpy(ip_addr+1,image.data,image.total() * image.elemSize());  
     memset(ip_addr,1,1);                        // set marker byte=1  
@@ -227,11 +224,28 @@ int IPManager::chooseGPU(int pGPU){
             minG=GPUresources[i];
         }
     }
+    // Greedy mode
     if (chosen==-1){
         cout<<"No GPU found, just insert IP to the most free GPU"<<endl;
         chosen=distance(GPUresources.begin(),max_element(GPUresources.begin(),GPUresources.end()));
     }
     GPUresources[chosen]=GPUresources[chosen]-pGPU;
-    // GPUresources[chosen]=(available_resources>0) ? available_resources:0;
     return chosen;
+};
+void IPManager::setInferType(int type){
+    InferType=type;
+    return;
+};
+
+IPManager::~IPManager(){
+    // Kill all Inference Processes
+    for (int i = 0; i < ip_list.size(); ++i) {
+        kill(ip_list[i].pid, SIGTERM);
+    }
+    atomic<int> ip_pid;
+    while ((ip_pid = wait(nullptr)) > 0){
+        cout << "Inference Process " << ip_pid << " terminated" << endl;
+    }
+    shared_memory_object::remove("sharedBuf");
+    _exit(EXIT_SUCCESS);
 };
