@@ -1,4 +1,5 @@
 #include "IPManager.h"
+#include "consolelog.hpp"
 
 using namespace std;
 using namespace boost::interprocess;
@@ -11,7 +12,7 @@ void IPManager::run(){
     for (int i=0;i<n_GPU;i++){
         GPUresources.push_back(100);
     }
-    cout<<"System has "<<n_GPU<<" GPU"<<endl;
+    console.info("System has",n_GPU,"GPU");
     boost::thread th(&IPManager::IPsTimer, this);
     
     string row;
@@ -35,7 +36,7 @@ void IPManager::run(){
         data.close();
     }
     else{
-        cout<<"Profiler file not found"<<endl;
+        console.error("Profiler file not found");
         return;
     }
     
@@ -57,7 +58,7 @@ void IPManager::IPsTimer(){
             GPUresources[p->allocatedGPU]+=p->pGPU;
             atomic<int> ip_pid;
             while ((ip_pid = waitpid(p->pid,NULL,0)) > 0){
-                cout << "Inference Process " << ip_pid << " terminated due to timeout" << endl;
+                console.info("Inference Process",ip_pid,"terminated due to timeout");
             }
             ipidTimer.erase(p->ip_id);
             ip_ids[p->ip_id]=0;
@@ -115,7 +116,7 @@ void IPManager::createInferenceProcess(string model_name, int ip_id,int SLO){
     else if (InferType==1)
         strcpy(infer_type,"infer_trt");
     char* args_list[]={infer_type,_model_name,ipid_str,_gpuid,NULL};
-    cout<<"Create Inference Process "<<ip_id<<" on GPU"<<GPUid<< " with "<<pGPU<<"%"<<endl;
+    console.info("Create Inference Process ",ip_id," on GPU",GPUid,"with",pGPU,"%");
     struct InferenceProcess new_ip; 
     new_ip.ip_id=ip_id;
     new_ip.pid = spawnProcess(args_list, env);
@@ -185,7 +186,7 @@ int IPManager::getAvailableIPID(){
 
 int IPManager::handle(void* sharedMemAddr, string image,string model_name,int SLO){
     if (!running){
-        cout<<"IPManger is not running"<<endl;
+        console.error("IPManger is not running");
         return -1;
     }
     int ip_id= searchIP(model_name,SLO);
@@ -199,7 +200,7 @@ int IPManager::handle(void* sharedMemAddr, string image,string model_name,int SL
     }
     while (ip_id!=-1){
         // Run model inference
-        cout<<"Inference with IP "<<ip_id<<endl;
+        console.info("Inference with IP",ip_id);
         int pred=infer(sharedMemAddr,image,ip_id);
         return pred;
     }
@@ -226,7 +227,7 @@ int IPManager::chooseGPU(int pGPU){
     }
     // Greedy mode
     if (chosen==-1){
-        cout<<"No GPU found, just insert IP to the most free GPU"<<endl;
+        console.info("No fit GPU found, just insert IP to the most free GPU");
         chosen=distance(GPUresources.begin(),max_element(GPUresources.begin(),GPUresources.end()));
     }
     GPUresources[chosen]=GPUresources[chosen]-pGPU;
@@ -244,7 +245,7 @@ IPManager::~IPManager(){
     }
     atomic<int> ip_pid;
     while ((ip_pid = wait(nullptr)) > 0){
-        cout << "Inference Process " << ip_pid << " terminated" << endl;
+        console.info("Inference Process",ip_pid,"terminated");
     }
     shared_memory_object::remove("sharedBuf");
     _exit(EXIT_SUCCESS);

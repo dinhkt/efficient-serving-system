@@ -3,6 +3,7 @@
 
 #include "TRTengine.h"
 #include "NvOnnxParser.h"
+#include "consolelog.hpp"
 
 void Logger::log(Severity severity, const char *msg) noexcept {
     if (severity <= Severity::kWARNING) {
@@ -21,15 +22,15 @@ TRTengine::TRTengine(const Options &options)
 bool TRTengine::build(std::string onnxModelPath) {
     // Only regenerate the engine file if it has not already been generated for the specified options
     m_engineName = serializeEngineOptions(m_options);
-    std::cout << "Searching for engine file with name: " << m_engineName << std::endl;
+    console.info("Searching for engine file with name:",m_engineName);
 
     if (doesFileExist(m_engineName)) {
-        std::cout << "Engine found, not regenerating..." << std::endl;
+        console.info("Engine found, not regenerating...");
         return true;
     }
 
     // Was not able to find the engine file, generate...
-    std::cout << "Engine not found, generating..." << std::endl;
+    console.info("Engine not found, generating...");
 
     // Create our engine builder.
     auto builder = std::unique_ptr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(m_logger));
@@ -130,7 +131,7 @@ bool TRTengine::build(std::string onnxModelPath) {
     std::ofstream outfile(m_engineName, std::ofstream::binary);
     outfile.write(reinterpret_cast<const char*>(plan->data()), plan->size());
 
-    std::cout << "Success, saved engine to " << m_engineName << std::endl;
+    console.info("Success, saved engine to",m_engineName);
 
     return true;
 }
@@ -240,13 +241,13 @@ bool TRTengine::runInference(void *image_bytes, int batchSize, std::vector<std::
     // Copy the results back to CPU memory
     ret = cudaMemcpyAsync(m_outputBuff.hostBuffer.data(), m_outputBuff.deviceBuffer.data(), m_outputBuff.deviceBuffer.nbBytes(), cudaMemcpyDeviceToHost, m_cudaStream);
     if (ret != 0) {
-        std::cout << "Unable to copy buffer from GPU back to CPU" << std::endl;
+        console.error("Unable to copy buffer from GPU back to CPU");
         return false;
     }
 
     ret = cudaStreamSynchronize(m_cudaStream);
     if (ret != 0) {
-        std::cout << "Unable to synchronize cuda stream" << std::endl;
+        console.error("Unable to synchronize cuda stream");
         return false;
     }
 

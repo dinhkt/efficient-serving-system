@@ -16,6 +16,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include "include/imageutils.h"
+#include "include/consolelog.hpp"
 
 #define MEM_BLOCK 1000000
 using namespace std;
@@ -53,7 +54,7 @@ int main(int argc, const char* argv[]) {
     cerr << "error loading the model\n";
     return -1;
   }
-  cout << "Load model success\n";
+  console.info("Load model success");
   model.to(device_string);
 
   /* TODO: Speedup inference with CUDA Graph Stream capture, available since torch 1.10 */

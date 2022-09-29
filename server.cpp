@@ -1,6 +1,6 @@
 #include "include/crow_all.h"
 #include "include/IPManager.h"
-
+#include "include/consolelog.hpp"
 
 using namespace std;
 using namespace boost::interprocess;
@@ -23,10 +23,9 @@ int main(int argc, const char* argv[]) {
     vector<string> labels;
     readImageNetlabels(labels,"../labels.txt");
     if (labels.size()==0){
-        cout<<"Labels file not found"<<endl;
+        console.error("Labels file not found");
         return EXIT_FAILURE;
     }
-
     // Create SharedMemory Buffer to share between main process and launched inference processes 
     shared_memory_object shm (open_or_create, "sharedBuf", read_write);
     shm.truncate(NIP_MAX*MEM_BLOCK);
@@ -35,10 +34,14 @@ int main(int argc, const char* argv[]) {
     memset(sharedMemAddr,0, region.get_size());
     // Create Inference Process Manager
     IPManager IPMgr;
-    if (strcmp(argv[1],"tcpp")==0)
+    if (argc==2 && strcmp(argv[1],"tcpp")==0)
         IPMgr.setInferType(0);
-    else if (strcmp(argv[1],"trt")==0)
+    else if (argc==2 && strcmp(argv[1],"trt")==0)
         IPMgr.setInferType(1);
+    else{
+        console.error("Usage: ./server <infer_mode>\ninfer_mode=tcpp for torch c++ \ninfer_mode=trt for tensorrt ");
+        return EXIT_FAILURE;
+    }
     IPMgr.run();
     //REST API by Crow 
     crow::SimpleApp app;
@@ -54,7 +57,7 @@ int main(int argc, const char* argv[]) {
             string base64_image = args["image"].s();
             string model_name = args["model"].s();
             int SLO = args["slo"].i();
-            cout<<"Received request for "<<model_name<<",slo="<<SLO<<endl;
+            console.info("Received request for",model_name,",slo =",SLO);
             int pred=IPMgr.handle(sharedMemAddr,base64_image,model_name,SLO);
             if (pred!=-1){
                 result["Prediction"] = labels[pred];
