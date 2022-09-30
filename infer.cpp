@@ -12,16 +12,26 @@
 #include <ATen/cuda/CUDAEvent.h>
 #include <torch/cuda.h>
 #include <stdio.h>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include "include/imageutils.h"
 #include "include/consolelog.hpp"
 
 #define MEM_BLOCK 1000000
-using namespace std;
 using namespace boost::interprocess;
-using namespace cv;
+
+
+std::vector<float> get_outputs(torch::Tensor output) {
+  int ndim = output.ndimension();
+  assert(ndim == 2);
+
+  torch::ArrayRef<int64_t> sizes = output.sizes();
+  int n_samples = sizes[0];
+  int n_classes = sizes[1];
+
+  assert(n_samples == 1);
+
+  std::vector<float> probs(output.data_ptr<float>(),
+                                  output.data_ptr<float>() + (n_samples * n_classes));
+  return probs;
+}
 
 /*
   Inference Process: ./infer model_name ip_id GPUid 
@@ -32,7 +42,7 @@ int main(int argc, const char* argv[]) {
   shared_memory_object shm (open_only, sm_file, read_write);
   mapped_region region(shm, read_write,MEM_BLOCK*atoi(argv[2]),MEM_BLOCK);
   // Load model
-  unordered_map<string,string> model_path{
+  std::unordered_map<std::string,std::string> model_path{
     {"resnet18","../model_dir/resnet18.pt"},
     {"resnet50","../model_dir/resnet50.pt"},
     {"vgg16","../model_dir/vgg16.pt"},
@@ -40,7 +50,7 @@ int main(int argc, const char* argv[]) {
   };
 
   int GPUid=atoi(argv[3]);
-  string device_string="cuda:"+to_string(GPUid);
+  std::string device_string="cuda:"+std::to_string(GPUid);
   c10::InferenceMode guard;
   // get a new stream from CUDA stream pool on device
   at::cuda::CUDAStream myStream = at::cuda::getStreamFromPool(false, GPUid);
@@ -51,7 +61,7 @@ int main(int argc, const char* argv[]) {
     model = torch::jit::load(model_path[argv[1]]);
   }
   catch (const c10::Error& e) {
-    cerr << "error loading the model\n";
+    console.error("error loading the model");
     return -1;
   }
   console.info("Load model success");
@@ -65,8 +75,8 @@ int main(int argc, const char* argv[]) {
   
   int image_height = 224;
   int image_width = 224; 
-  vector<int64_t> dims = {1, image_height, image_width, 3};
-  vector<int64_t> permute_dims = {0, 3, 1, 2};
+  std::vector<int64_t> dims = {1, image_height, image_width, 3};
+  std::vector<int64_t> permute_dims = {0, 3, 1, 2};
   // CUDA Timer
   auto start=at::cuda::CUDAEvent(true);
   auto end=at::cuda::CUDAEvent(true);
@@ -87,8 +97,8 @@ int main(int argc, const char* argv[]) {
         // end.record();
         // torch::cuda::synchronize();
         // cout<<"Inference time:"<<start.elapsed_time(end)<<"ms \n";
-        vector<float> probs = get_outputs(output.to(at::kCPU));
-        int pred=distance(probs.begin(),max_element(probs.begin(), probs.end()));
+        std::vector<float> probs = get_outputs(output.to(at::kCPU));
+        int pred=std::distance(probs.begin(),std::max_element(probs.begin(), probs.end()));
         // Write result to sharedBuf
         memset(mem+1,pred & 0xff,1);
         memset(mem+2,(pred >> 8) & 0xff,1);

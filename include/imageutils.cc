@@ -150,11 +150,11 @@ std::vector<float> get_outputs(torch::Tensor output) {
 
   assert(n_samples == 1);
 
-  std::vector<float> unnorm_probs(output.data_ptr<float>(),
+  std::vector<float> probs(output.data_ptr<float>(),
                                   output.data_ptr<float>() + (n_samples * n_classes));
 
   // Softmax
-  std::vector<float> probs = __softmax(unnorm_probs);
+  // std::vector<float> probs = __softmax(unnorm_probs);
 
   return probs;
 }

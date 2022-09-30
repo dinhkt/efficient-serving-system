@@ -1,7 +1,6 @@
 #include "IPManager.h"
 #include "consolelog.hpp"
 
-using namespace std;
 using namespace boost::interprocess;
 
 
@@ -15,15 +14,15 @@ void IPManager::run(){
     console.info("System has",n_GPU,"GPU");
     boost::thread th(&IPManager::IPsTimer, this);
     
-    string row;
-    ifstream  data("../profiled_data/profiler.txt");
+    std::string row;
+    std::ifstream  data("../profiled_data/profiler.txt");
     if (data.is_open())
     {
-        string tmp,name,p,bs,t;
+        std::string tmp,name,p,bs,t;
         int i=0;
         while (getline(data,row)){
-            stringstream X(row);
-            string arr[4];
+            std::stringstream X(row);
+            std::string arr[4];
             while (getline(X,arr[i],',')){
                 i+=1;
                 if (i==4){
@@ -43,20 +42,20 @@ void IPManager::run(){
 }
 void IPManager::IPsTimer(){
     while (true){
-        auto now=chrono::steady_clock::now();
-        vector<int> expired_list;
+        auto now=std::chrono::steady_clock::now();
+        std::vector<int> expired_list;
         for(auto iter = ipidTimer.begin(); iter != ipidTimer.end(); ++iter){
-            if (chrono::duration_cast<chrono::seconds>(now-iter->second).count()>time_out)
+            if (std::chrono::duration_cast<std::chrono::seconds>(now-iter->second).count()>time_out)
                 expired_list.push_back(iter->first);
         }
 
         for (auto i: expired_list){
             auto p=find_if(ip_list.begin(),ip_list.end(),
                             [i](const InferenceProcess& ip) {return ip.ip_id==i;});
-            string model=p->model;
+            std::string model=p->model;
             kill(p->pid,SIGTERM);
             GPUresources[p->allocatedGPU]+=p->pGPU;
-            atomic<int> ip_pid;
+            std::atomic<int> ip_pid;
             while ((ip_pid = waitpid(p->pid,NULL,0)) > 0){
                 console.info("Inference Process",ip_pid,"terminated due to timeout");
             }
@@ -98,18 +97,18 @@ pid_t IPManager::spawnProcess(char** arg_list, char** env)
 }
 
 // Create inference process for model, with p% GPU, using NVIDIA-MPS
-void IPManager::createInferenceProcess(string model_name, int ip_id,int SLO){
+void IPManager::createInferenceProcess(std::string model_name, int ip_id,int SLO){
     int pGPU=getOptGPUpercentage(model_name,SLO);
     int GPUid=chooseGPU(pGPU);
     char mps_setting[50]="CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=";
-    strcat(mps_setting,to_string(pGPU).c_str());
+    strcat(mps_setting,std::to_string(pGPU).c_str());
     char *env[50]={mps_setting};
     char ipid_str[2];
-    strcpy(ipid_str,to_string(ip_id).c_str());
+    strcpy(ipid_str,std::to_string(ip_id).c_str());
     char _model_name[20];
     strcpy(_model_name,model_name.c_str());
     char _gpuid[2];
-    strcpy(_gpuid,to_string(GPUid).c_str());
+    strcpy(_gpuid,std::to_string(GPUid).c_str());
     char infer_type[10];
     if (InferType==0)
         strcpy(infer_type,"infer");
@@ -130,12 +129,12 @@ void IPManager::createInferenceProcess(string model_name, int ip_id,int SLO){
 }
 
 // do inference with InferenceProcess ip_id
-int IPManager::infer(void* mem_addr,string base64_image, int ip_id){
-    ipidTimer[ip_id]=chrono::steady_clock::now();       // update timer for this IP
+int IPManager::infer(void* mem_addr,std::string base64_image, int ip_id){
+    ipidTimer[ip_id]=std::chrono::steady_clock::now();       // update timer for this IP
     void* ip_addr=mem_addr+MEM_BLOCK*ip_id;     //determine shared memory address belong to IP
     // Decode image, preprocess and write to shared memory
-    string decoded_image = base64_decode(base64_image);
-    vector<uchar> image_data(decoded_image.begin(), decoded_image.end());
+    std::string decoded_image = base64_decode(base64_image);
+    std::vector<uchar> image_data(decoded_image.begin(), decoded_image.end());
     cv::Mat image = cv::imdecode(image_data, cv::IMREAD_UNCHANGED);
     image = preprocess(image, image_height, image_width, mean, std);
     // inference
@@ -157,7 +156,7 @@ int IPManager::infer(void* mem_addr,string base64_image, int ip_id){
 }
 
 // Search for best fit Inference Process for the requirement
-int IPManager::searchIP(string model_name,int slo){
+int IPManager::searchIP(std::string model_name,int slo){
     search_lock.lock();
     auto ips=model_map.find(model_name);
     int ip_id=-1;
@@ -184,7 +183,7 @@ int IPManager::getAvailableIPID(){
     return -1;
 }
 
-int IPManager::handle(void* sharedMemAddr, string image,string model_name,int SLO){
+int IPManager::handle(void* sharedMemAddr, std::string image,std::string model_name,int SLO){
     if (!running){
         console.error("IPManger is not running");
         return -1;
@@ -206,7 +205,7 @@ int IPManager::handle(void* sharedMemAddr, string image,string model_name,int SL
     }
 }
 
-int IPManager::getOptGPUpercentage(string model_name,int slo){
+int IPManager::getOptGPUpercentage(std::string model_name,int slo){
     auto model_slo=profiler[model_name];
     int minp=100;
     for (auto& it : model_slo){
@@ -228,7 +227,7 @@ int IPManager::chooseGPU(int pGPU){
     // Greedy mode
     if (chosen==-1){
         console.info("No fit GPU found, just insert IP to the most free GPU");
-        chosen=distance(GPUresources.begin(),max_element(GPUresources.begin(),GPUresources.end()));
+        chosen=std::distance(GPUresources.begin(),std::max_element(GPUresources.begin(),GPUresources.end()));
     }
     GPUresources[chosen]=GPUresources[chosen]-pGPU;
     return chosen;
@@ -243,7 +242,7 @@ IPManager::~IPManager(){
     for (int i = 0; i < ip_list.size(); ++i) {
         kill(ip_list[i].pid, SIGTERM);
     }
-    atomic<int> ip_pid;
+    std::atomic<int> ip_pid;
     while ((ip_pid = wait(nullptr)) > 0){
         console.info("Inference Process",ip_pid,"terminated");
     }
