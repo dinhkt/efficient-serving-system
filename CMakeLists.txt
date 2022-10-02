@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 project(app)
 
 
-set(CMAKE_PREFIX_PATH "/home/ncl/ktd/Download/libtorch/share/cmake/Torch")
+set(CMAKE_PREFIX_PATH "/usr/local/include/libtorch/share/cmake/Torch")
 # For finding FindTensorRT.cmake
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 set(TensorRT_DIR /usr/src/tensorrt/)
@@ -11,12 +11,13 @@ find_package(TensorRT REQUIRED)
 find_package(Torch REQUIRED)
 find_package(Boost COMPONENTS thread system REQUIRED)
 find_package (OpenCV  REQUIRED)
-
 find_package(CUDA REQUIRED)
 
 include_directories(${Boost_INCLUDE_DIR})
+message(${Boost_INCLUDE_DIR})
 include_directories(${TensorRT_INCLUDE_DIRS} ${TensorRT_DIR}/samples/common ${CUDA_INCLUDE_DIRS})
 include_directories (${OpenCV_INCLUDE_DIRS})
+include_directories (${CMAKE_SOURCE_DIR}/include)
 
 add_executable(infer infer.cpp)
 target_link_libraries(infer ${TORCH_LIBRARIES} rt)

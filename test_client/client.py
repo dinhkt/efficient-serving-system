@@ -1,6 +1,6 @@
 import requests, json, base64
 import time
-url = "http://localhost:8081/predict"
+url = "http://localhost:8082/predict"
 
 
 
@@ -18,14 +18,14 @@ for _ in range(100):
 
     print(json.loads(result))
     print("r1:"+str(time.time()-st))
-    st=time.time()
+#    st=time.time()
     # image_path = "dog.jpg"
-    image_path = "horses.jpg"
+ #   image_path = "horses.jpg"
     # image_path = "both.png"
-    result = requests.post(url, json={"image": base64.b64encode(open(image_path, "rb").read()).decode('utf-8'),"model":"resnet50","slo":8}).text
+  #  result = requests.post(url, json={"image": base64.b64encode(open(image_path, "rb").read()).decode('utf-8'),"model":"resnet50","slo":8}).text
 
-    print(json.loads(result))
-    print("r2:"+str(time.time()-st))
+   # print(json.loads(result))
+   # print("r2:"+str(time.time()-st))
     # st=time.time()
     # # image_path = "dog.jpg"
     # # image_path = "horses.jpg"

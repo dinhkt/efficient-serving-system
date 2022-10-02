@@ -1,8 +1,14 @@
-#include "include/crow_all.h"
-#include "include/IPManager.h"
-#include "include/consolelog.hpp"
+#include "crow.h"
+#include "IPManager.h"
+#include "consolelog.hpp"
+#include<signal.h>
 
 using namespace boost::interprocess;
+#define PORT 8082
+
+void sig_handler(int signum){
+    shared_memory_object::remove("sharedBuf");
+}
 
 void readImageNetlabels(std::vector<std::string> &labels,const char* labels_path){
     std::string label;
@@ -18,6 +24,10 @@ void readImageNetlabels(std::vector<std::string> &labels,const char* labels_path
 }
 
 int main(int argc, const char* argv[]) {
+    signal(SIGINT,sig_handler);
+    signal(SIGQUIT,sig_handler);
+    signal(SIGTERM,sig_handler);
+    signal(SIGKILL,sig_handler);
     // Read label for image classification
     std::vector<std::string> labels;
     readImageNetlabels(labels,"../labels.txt");
@@ -61,16 +71,13 @@ int main(int argc, const char* argv[]) {
             if (pred!=-1){
                 result["Prediction"] = labels[pred];
                 result["Status"] = "Success";
-                os << crow::json::dump(result);
-                return crow::response{os.str()};
+                return crow::response{result.dump()};
             }
             else{
-                os << crow::json::dump(result);
-                return crow::response{os.str()};
+                return crow::response{result.dump()};
             }
         } catch (std::exception& e){
-        os << crow::json::dump(result);
-        return crow::response(os.str());
+        return crow::response(result.dump());
         }
 
     });

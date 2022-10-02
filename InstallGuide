@@ -1,0 +1,43 @@
+Install Guide
+
+1. Install libboost and asio: 
+For Ubuntu >=20.04:
+    sudo apt-get install libboost-all-dev
+    sudo apt-get install libasio-dev
+For Ubuntu <=18.04:
+    a, install boost : (>=1.71)
+    wget https://sourceforge.net/projects/boost/files/boost/1.75.0/boost_1_75_0.zip/download
+    mv download boost.zip && unzip boost.zip
+    sudo ./bootstrap.sh --prefix=/usr (install globally)
+    sudo ./b2 install
+    b, install asio: (1.24)
+    wget https://sourceforge.net/projects/asio/files/asio/1.24.0%20%28Stable%29/asio-1.24.0.zip/download
+    mv download asio.zip && unzip asio.zip
+    make
+    sudo make install
+
+2. Install tensorrt 
+    download tensorrt deb file https://developer.nvidia.com/nvidia-tensorrt-8x-download
+    Then,
+    os="ubuntuxx04" 
+    tag="cudax.x-trt8.x.x.x-ga-yyyymmdd"
+    sudo dpkg -i nv-tensorrt-repo-${os}-${tag}_1-1_amd64.deb  (ex. nv)
+    sudo apt-key add /var/nv-tensorrt-repo-${os}-${tag}/*.pub
+
+    sudo apt-get update
+    sudo apt-get install tensorrt       # if this step fail because of ummet dependency, go to /var/nv-tensorrt-repo-${os}-${tag}/ and install with : sudo dpkg -i *.deb
+
+3. Install libtorch c++
+    download your libtorch version: https://download.pytorch.org/libtorch/cu116/libtorch-cxx11-abi-shared-with-deps-1.12.1%2Bcu116.zip
+    unzip the file and change CMAKE_PREFIX_PATH = <your libtorch directory> in CMakeLists
+
+4. Install Lib Opencv
+    wget -O opencv.zip https://github.com/opencv/opencv/archive/4.x.zip
+    unzip opencv.zip
+    # Create build directory
+    mkdir -p build && cd build
+    # Configure
+    cmake  ../opencv-4.x
+    # Build
+    cmake --build .
+    sudo make install

@@ -24,8 +24,7 @@
 #include "imageutils.h"
 #include "base64.h"
 
-#define MEM_BLOCK 1000000        // Memory block size for each inference process
-#define PORT 8081       
+#define MEM_BLOCK 1000000        // Memory block size for each inference process      
 #define NIP_MAX 100             // Maximum number of active inference processes
 #define TIMEOUT 100
 typedef int pid_t;

@@ -12,7 +12,7 @@
 #include <ATen/cuda/CUDAEvent.h>
 #include <torch/cuda.h>
 #include <stdio.h>
-#include "include/consolelog.hpp"
+#include "consolelog.hpp"
 
 #define MEM_BLOCK 1000000
 using namespace boost::interprocess;
