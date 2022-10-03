@@ -13,6 +13,7 @@ For Ubuntu <=18.04:
     b, install asio: (1.24)
     wget https://sourceforge.net/projects/asio/files/asio/1.24.0%20%28Stable%29/asio-1.24.0.zip/download
     mv download asio.zip && unzip asio.zip
+    ./configure
     make
     sudo make install
 

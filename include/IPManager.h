@@ -26,7 +26,7 @@
 
 #define MEM_BLOCK 1000000        // Memory block size for each inference process      
 #define NIP_MAX 100             // Maximum number of active inference processes
-#define TIMEOUT 100
+#define TIMEOUT 120
 typedef int pid_t;
 
 struct InferenceProcess{

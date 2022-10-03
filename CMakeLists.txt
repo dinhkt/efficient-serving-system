@@ -19,13 +19,13 @@ include_directories(${TensorRT_INCLUDE_DIRS} ${TensorRT_DIR}/samples/common ${CU
 include_directories (${OpenCV_INCLUDE_DIRS})
 include_directories (${CMAKE_SOURCE_DIR}/include)
 
-add_executable(infer infer.cpp)
+add_executable(infer src/infer.cpp)
 target_link_libraries(infer ${TORCH_LIBRARIES} rt)
 
-add_executable(infer_trt infer_trt.cpp include/TRTengine.cpp)
+add_executable(infer_trt src/infer_trt.cpp src/TRTengine.cpp)
 target_link_libraries(infer_trt rt ${TensorRT_LIBRARIES} ${CUDA_LIBRARIES} )
 
-add_executable(server server.cpp include/IPManager.cpp include/base64.cc include/imageutils.cc)
+add_executable(server src/server.cpp src/IPManager.cpp include/base64.cc include/imageutils.cc)
 target_link_libraries(server ${TORCH_LIBRARIES} rt ${Boost_LIBRARIES} ${OpenCV_LIBS} )
 
 set_property(TARGET server infer infer_trt PROPERTY CXX_STANDARD 17)
