@@ -95,7 +95,7 @@ int main(int argc, const char* argv[]) {
         // start.record();
         torch::Tensor output = model.forward({input_tensor.to(device_string)}).toTensor();
         // end.record();
-        // torch::cuda::synchronize();
+        torch::cuda::synchronize();
         // cout<<"Inference time:"<<start.elapsed_time(end)<<"ms \n";
         std::vector<float> probs = get_outputs(output.to(at::kCPU));
         int pred=std::distance(probs.begin(),std::max_element(probs.begin(), probs.end()));

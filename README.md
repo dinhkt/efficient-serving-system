@@ -27,7 +27,7 @@ And implement 2 types of Inference for DL models: Torch C++ API: (https://pytorc
   ``` sudo docker run --gpus all -it ```
  
 ### Install on host machine:
-  Refer to file InstallGuile.
+  Refer to file InstallGuide.
   
 ### Build the project:
   ```

@@ -81,7 +81,7 @@ int main(int argc, const char* argv[]) {
         }
 
     });
-    app.port(PORT).run();
+    app.port(PORT).multithreaded().run();
     return EXIT_SUCCESS;
     
 }

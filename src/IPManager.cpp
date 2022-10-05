@@ -125,7 +125,6 @@ void IPManager::createInferenceProcess(std::string model_name, int ip_id,int SLO
     new_ip.pGPU=pGPU;
     ip_list.push_back(new_ip);
     model_map[model_name].push_back(new_ip);
-    ip_ids[ip_id]=1;
 }
 
 // do inference with InferenceProcess ip_id
@@ -157,10 +156,16 @@ int IPManager::infer(void* mem_addr,std::string base64_image, int ip_id){
 
 // Search for best fit Inference Process for the requirement
 int IPManager::searchIP(std::string model_name,int slo){
-    search_lock.lock();
     auto ips=model_map.find(model_name);
     int ip_id=-1;
     if (ips==model_map.end()){
+        search_lock.lock();
+        ip_id=getAvailableIPID();
+        if (ip_id==-1){
+            return -1;
+        }
+        ip_ids[ip_id]=1;
+        createInferenceProcess(model_name,ip_id,slo);
         search_lock.unlock();
         return ip_id;
     }
@@ -171,7 +176,6 @@ int IPManager::searchIP(std::string model_name,int slo){
             ip_id=it.ip_id;
         }
     }
-    search_lock.unlock();
     return ip_id;
 };
 
@@ -189,15 +193,15 @@ int IPManager::handle(void* sharedMemAddr, std::string image,std::string model_n
         return -1;
     }
     int ip_id= searchIP(model_name,SLO);
-    // If not found, create Inference Process
     if (ip_id==-1){
-        ip_id=getAvailableIPID();
-        if (ip_id==-1){
-            return -1;
-        }
-        createInferenceProcess(model_name,ip_id,SLO);
+        console.info("System overloaded");
+        return -1;
     }
-    while (ip_id!=-1){
+    else if (ip_id==-2){
+        console.info("SLO is too tight, can not generate any satisfy inference process");
+        return -1;
+    }
+    else {
         // Run model inference
         console.info("Inference with IP",ip_id);
         int pred=infer(sharedMemAddr,image,ip_id);
