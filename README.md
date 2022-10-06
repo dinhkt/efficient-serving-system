@@ -24,7 +24,7 @@ And implement 2 types of Inference for DL models: Torch C++ API: (https://pytorc
   
   Then run the container with:
   
-  ``` sudo docker run --gpus all -it ```
+  ``` sudo docker run --gpus all --shm-size 1G -p 8082:8082 -it ef-serving /bin/bash```
  
 ### OR Install on host machine:
   Refer to file InstallGuide.
