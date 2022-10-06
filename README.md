@@ -13,12 +13,12 @@ This project uses Crow(https://github.com/CrowCpp/Crow) for creating the HTTP we
 
 And implement 2 types of Inference for DL models: Torch C++ API: (https://pytorch.org/cppdocs/) and NVIDIA TensorRT C++ Inference (https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#c_topics)
 
-
+![Architecture](architecture.png)
 ## Installation
-### Docker Install:
+### Docker container install:
   Require install docker NVIDIA toolkit: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
   
-  Build:
+  Build container:
   
   ``` docker build -t ef-serving . ```
   
@@ -26,10 +26,11 @@ And implement 2 types of Inference for DL models: Torch C++ API: (https://pytorc
   
   ``` sudo docker run --gpus all -it ```
  
-### Install on host machine:
+### OR Install on host machine:
   Refer to file InstallGuide.
   
 ### Build the project:
+  Go to /app folder on docker container or Project foler on host machine. Then:
   ```
   mkdir build && cd build
   cmake ..
