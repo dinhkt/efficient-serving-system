@@ -16,7 +16,7 @@
 
 #define MEM_BLOCK 1000000
 using namespace boost::interprocess;
-
+std::string MODEL_DIR("../model_dir/");
 
 std::vector<float> get_outputs(torch::Tensor output) {
   int ndim = output.ndimension();
@@ -42,12 +42,21 @@ int main(int argc, const char* argv[]) {
   shared_memory_object shm (open_only, sm_file, read_write);
   mapped_region region(shm, read_write,MEM_BLOCK*atoi(argv[2]),MEM_BLOCK);
   // Load model
-  std::unordered_map<std::string,std::string> model_path{
-    {"resnet18","../model_dir/resnet18.pt"},
-    {"resnet50","../model_dir/resnet50.pt"},
-    {"vgg16","../model_dir/vgg16.pt"},
-    {"vgg19","../model_dir/vgg19.pt"}
-  };
+  std::unordered_map<std::string,std::string> model_path;
+  std::ifstream  data(MODEL_DIR+std::string("config_tcpp.txt"));
+  std::string row;
+  while (getline(data,row)){
+    std::stringstream X(row);
+    std::string arr[2];
+    int i=0;
+    while (getline(X,arr[i],',')){
+        i+=1;
+        if (i==2){
+            model_path[arr[0]]=MODEL_DIR+arr[1];
+            i=0;
+        }
+    }
+  }
 
   int GPUid=atoi(argv[3]);
   std::string device_string="cuda:"+std::to_string(GPUid);

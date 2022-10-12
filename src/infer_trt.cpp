@@ -3,8 +3,8 @@
 #include <boost/interprocess/mapped_region.hpp>
 
 #define MEM_BLOCK 1000000
-
 using namespace boost::interprocess;
+std::string MODEL_DIR("../model_dir/");
 
 //Inference Process: ./infer_trt model_name ip_id GPUid
 int main(int argc, const char* argv[]) {
@@ -14,12 +14,21 @@ int main(int argc, const char* argv[]) {
     mapped_region region(shm, read_write,MEM_BLOCK*atoi(argv[2]),MEM_BLOCK);
 
     // Must specify a dynamic batch size when exporting the model to onnx.
-    std::unordered_map<std::string,std::string> model_path{
-        {"resnet18","../model_dir/resnet18.onnx"},
-        {"resnet50","../model_dir/resnet50.onnx"},
-        {"vgg16","../model_dir/vgg16.onnx"},
-        {"vgg19","../model_dir/vgg19.onnx"}
-    };
+    std::unordered_map<std::string,std::string> model_path;
+    std::ifstream  data(MODEL_DIR+std::string("config_trt.txt"));
+    std::string row;
+    while (getline(data,row)){
+        std::stringstream X(row);
+        std::string arr[2];
+        int i=0;
+        while (getline(X,arr[i],',')){
+            i+=1;
+            if (i==2){
+                model_path[arr[0]]=MODEL_DIR+arr[1];
+                i=0;
+            }
+        }
+    }
 
     Options options;
     options.optBatchSizes = {1, 2, 4, 8};

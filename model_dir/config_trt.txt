@@ -1,0 +1,4 @@
+resnet18,resnet18.onnx
+resnet50,resnet50.onnx
+vgg16,vgg16.onnx
+vgg19,vgg19.onnx

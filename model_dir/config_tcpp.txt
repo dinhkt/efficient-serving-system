@@ -1,0 +1,4 @@
+resnet18,resnet18.pt
+resnet50,resnet50.pt
+vgg16,vgg16.pt
+vgg19,vgg19.pt

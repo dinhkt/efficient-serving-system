@@ -1,7 +1,7 @@
 # efficient-serving-system
-## Efficient Deep Learning multi-model scheduling and serving for multi-GPU system with resources provision
+## Efficient Deep Learning multi-model scheduling and serving for multi-GPU system with resources provisioning
 
-A single process usually doesn't utilize all the compute and memory-bandwidth capacity available on the GPU. However, sharing multiple inference processes of DL models on a GPU
+Sharing multiple inference processes of DL models on a GPU
 usually leads to unpredictable inference time of each model inference. The purpose of this project is to schedule the models inference processes on a multi-GPU system based 
 on client requests and provision a GPU thread limit for each process so that the inference process of each model has least interference with each other. 
 
@@ -15,8 +15,8 @@ And implement 2 types of Inference for DL models: Torch C++ API: (https://pytorc
 
 ![Architecture](architecture.png)
 ## Installation
-### Docker container install:
-  Require install docker NVIDIA toolkit: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
+### Get easy with Docker container:
+  Require install docker NVIDIA toolkit in advanced: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
   
   Build container:
   
@@ -30,12 +30,30 @@ And implement 2 types of Inference for DL models: Torch C++ API: (https://pytorc
   Refer to file InstallGuide.
   
 ### Build the project:
-  Go to /app folder on docker container or Project foler on host machine. Then:
+  Go to /app folder on docker container or Project folder on host machine. Then:
   ```
   mkdir build && cd build
   cmake ..
   cmake --build .
   ```
+### Provide models
+  The system needs Torchscript ```.pt``` models for Torch C++, and ONNX ```.onnx``` models for TensorRT.
+  Refer to convert.py in ```model_dir``` for example of converting torchvision models to the Torchscript and ONNX format.
+
+  Copy the converted models to ```model_dir``` and then append ```model_name,converted_model_file``` to ```config_tcpp.txt``` or ```config_trt.txt```.
+
+### Profile models:
+  When adding a model to the system, need an offline profiling step to determine the inference time of the model with pairs of ```input_batchsize,GPU% provisioned```.
+  
+  Go to ```profiled_data``` Then:
+  ```
+  mkdir build && cd build
+  cmake ..
+  cmake --build .
+  ./main        # Run the offline profiler 
+  ```
+  The profiling results stored in ```tcpp_profiler.txt``` and ```trt_profiler.txt```
+
 ### Run and Test:
   Run Server:
   ``` ./server tcpp``` for Torch C++ Inference or ```./server trt``` for TensorRT Inference

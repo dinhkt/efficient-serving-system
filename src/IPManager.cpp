@@ -15,7 +15,14 @@ void IPManager::run(){
     boost::thread th(&IPManager::IPsTimer, this);
     
     std::string row;
-    std::ifstream  data("../profiled_data/profiler.txt");
+    std::string fpath;
+    if (InferType==0){
+	    fpath="../profiled_data/tcpp_profiler.txt";
+    }
+    else{
+	    fpath="../profiled_data/trt_profiler.txt";
+    }
+    std::ifstream  data(fpath); 
     if (data.is_open())
     {
         std::string tmp,name,p,bs,t;
