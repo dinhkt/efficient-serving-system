@@ -11,7 +11,7 @@ on a GPU, the execution of each model doesn't interfere with the others when co-
 
 This project uses Crow(https://github.com/CrowCpp/Crow) for creating the HTTP web services to handle client requests. 
 
-And implement 2 types of Inference for DL models: Torch C++ API: (https://pytorch.org/cppdocs/) and NVIDIA TensorRT C++ Inference (https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#c_topics)
+And implement 2 types of Inference for DL models: Libtorch C++ API: (https://pytorch.org/cppdocs/) and NVIDIA TensorRT C++ Inference (https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#c_topics)
 
 ![Architecture](architecture.png)
 ## Installation
@@ -22,12 +22,12 @@ And implement 2 types of Inference for DL models: Torch C++ API: (https://pytorc
   
   ``` docker build -t ef-serving . ```
   
-  Then run the container with:
+  Then run the container in interactive mode with:
   
   ``` sudo docker run --gpus all --shm-size 1G -p 8082:8082 -it ef-serving /bin/bash```
  
 ### OR Install on host machine:
-  Refer to file InstallGuide.
+  Refer to InstallGuide.
   
 ### Build the project:
   Go to /app folder on docker container or Project folder on host machine. Then:
@@ -55,8 +55,11 @@ And implement 2 types of Inference for DL models: Torch C++ API: (https://pytorc
   The profiling results stored in ```tcpp_profiler.txt``` and ```trt_profiler.txt```
 
 ### Run and Test:
+  Run MPS Server:
+  ``` ../start_MPS.sh```
+  
   Run Server:
   ``` ./server tcpp``` for Torch C++ Inference or ```./server trt``` for TensorRT Inference
   
   Test client:
-  ``` python client.py```
+  ``` python client.py``` or ```python async_client.py```
