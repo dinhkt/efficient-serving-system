@@ -2,7 +2,7 @@
 #include <boost/interprocess/shared_memory_object.hpp>
 #include <boost/interprocess/mapped_region.hpp>
 
-#define MEM_BLOCK 1000000
+#define MEM_BLOCK 100000000
 using namespace boost::interprocess;
 std::string MODEL_DIR("../model_dir/");
 
