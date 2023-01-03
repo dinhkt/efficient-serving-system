@@ -19,11 +19,13 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include "base64.h"
 
 cv::Mat preprocess(cv::Mat, int, int,
   std::vector<double>,
   std::vector<double>);
 torch::Tensor convert_images_to_tensor(std::vector<cv::Mat> images);
 std::vector<float> get_outputs(torch::Tensor output);
-
+std::vector<int> IC_postprocess(void* res,int bs);
+size_t IC_preprocess(void** buffer, std::vector<std::string> images);
 #endif

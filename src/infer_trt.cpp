@@ -57,12 +57,14 @@ int main(int argc, const char* argv[]) {
             continue;
         else{
             int bs=*mem;      
+            console.info("read",bs);
             engine.runInference(static_cast<void*>(mem)+1,bs,outputs);
-            // now input only have bs=1
-            int pred=std::distance(outputs[0].begin(),std::max_element(outputs[0].begin(), outputs[0].end()));
-            // Write result to sharedBuf
-            memset(mem+1,pred & 0xff,1);
-            memset(mem+2,(pred >> 8) & 0xff,1);
+            for (int i=0;i<bs;i++){
+                int pred=std::distance(outputs[i].begin(),std::max_element(outputs[i].begin(), outputs[i].end()));
+                console.info(pred);
+                memset(mem+1+2*i,pred & 0xff,1);
+                memset(mem+2+2*i,(pred >> 8) & 0xff,1);
+            }
             memset(mem, 0, 1); // set marker byte to 0
         }
     }

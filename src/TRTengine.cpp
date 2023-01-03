@@ -3,7 +3,6 @@
 
 #include "TRTengine.h"
 #include "NvOnnxParser.h"
-#include "consolelog.hpp"
 
 void Logger::log(Severity severity, const char *msg) noexcept {
     if (severity <= Severity::kWARNING) {
@@ -189,7 +188,7 @@ bool TRTengine::loadNetwork() {
 bool TRTengine::runInference(void *image_bytes, int batchSize, std::vector<std::vector<float>>& outputs) {
     auto dims = m_engine->getBindingDimensions(0);
     auto outputL = m_engine->getBindingDimensions(1).d[1];
-    Dims4 inputDims = {1, dims.d[1], dims.d[2], dims.d[3]};
+    Dims4 inputDims = {batchSize, dims.d[1], dims.d[2], dims.d[3]};
     m_context->setBindingDimensions(0, inputDims);
     if (!m_context->allInputDimensionsSpecified()) {
         throw std::runtime_error("Error, not all input dimensions specified.");
@@ -197,7 +196,6 @@ bool TRTengine::runInference(void *image_bytes, int batchSize, std::vector<std::
 
     // Only reallocate buffers if the batch size has changed
     if (m_prevBatchSize != batchSize) {
-
         m_inputBuff.hostBuffer.resize(inputDims);
         m_inputBuff.deviceBuffer.resize(inputDims);
 
@@ -213,14 +211,19 @@ bool TRTengine::runInference(void *image_bytes, int batchSize, std::vector<std::
     // NHWC to NCHW conversion
     for (size_t batch = 0; batch<batchSize;  ++batch) {
         int offset = dims.d[1] * dims.d[2] * dims.d[3] * batch;
+        console.info(dims.d[1],dims.d[2],dims.d[3]);
+        console.info(offset);
         int r = 0 , g = 0, b = 0;
         for (int i = 0; i < dims.d[1] * dims.d[2] * dims.d[3]; ++i) {
+            if (i==0) {
+                console.info(image_bytes+offset);
+            }
             if (i % 3 == 0) {
-                hostDataBuffer[offset + r++] = *(reinterpret_cast<float*>(image_bytes) + i);
+                hostDataBuffer[offset + r++] = *(reinterpret_cast<float*>(image_bytes+offset) + i);
             } else if (i % 3 == 1) {
-                hostDataBuffer[offset + g++ + dims.d[2]*dims.d[3]] = *(reinterpret_cast<float*>(image_bytes) + i);
+                hostDataBuffer[offset + g++ + dims.d[2]*dims.d[3]] = *(reinterpret_cast<float*>(image_bytes+offset) + i);
             } else {
-                hostDataBuffer[offset + b++ + dims.d[2]*dims.d[3]*2] = *(reinterpret_cast<float*>(image_bytes) + i);
+                hostDataBuffer[offset + b++ + dims.d[2]*dims.d[3]*2] = *(reinterpret_cast<float*>(image_bytes+offset) + i);
             }
         }
     }
@@ -255,8 +258,7 @@ bool TRTengine::runInference(void *image_bytes, int batchSize, std::vector<std::
     for (int batch = 0; batch < batchSize; ++batch) {
         std::vector<float> output;
         output.resize(outputL);
-        memcpy(output.data(), reinterpret_cast<const char*>(m_outputBuff.hostBuffer.data()) +
-        batch * outputL * sizeof(float), outputL * sizeof(float ));
+        memcpy(output.data(), reinterpret_cast<const char*>(m_outputBuff.hostBuffer.data() + batch * outputL * sizeof(float)), outputL * sizeof(float));
         outputs.emplace_back(std::move(output));
     }
 

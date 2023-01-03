@@ -9,10 +9,10 @@ void IPManager::run(){
     // info of GPUs resources available
     n_GPU=at::cuda::device_count();
     for (int i=0;i<n_GPU;i++){
-        GPUresources.push_back(100);
+        GPUresources.emplace_back(100);
     }
     console.info("System has",n_GPU,"GPU");
-    boost::thread th(&IPManager::IPsTimer, this);
+    boost::thread _SC_THREAD_ATTR_STACKADDR(&IPManager::IPsTimer, this);
     
     std::string row;
     std::string fpath;
@@ -33,8 +33,7 @@ void IPManager::run(){
             while (getline(X,arr[i],',')){
                 i+=1;
                 if (i==4){
-                    if (stoi(arr[2])==1)
-                        profiler[arr[0]][stoi(arr[1])]=stof(arr[3]);
+                    profiler[arr[0]+"_"+arr[2]][stoi(arr[1])]=stof(arr[3]);
                     i=0;
                 }
             }
@@ -56,29 +55,23 @@ void IPManager::IPsTimer(){
                 expired_list.push_back(iter->first);
         }
 
-        for (auto i: expired_list){
-            auto p=find_if(ip_list.begin(),ip_list.end(),
-                            [i](const InferenceProcess& ip) {return ip.ip_id==i;});
-            std::string model=p->model;
-            kill(p->pid,SIGTERM);
-            GPUresources[p->allocatedGPU]+=p->pGPU;
-            std::atomic<int> ip_pid;
-            while ((ip_pid = waitpid(p->pid,NULL,0)) > 0){
-                console.info("Inference Process",ip_pid,"terminated due to timeout");
-            }
-            ipidTimer.erase(p->ip_id);
-            ip_ids[p->ip_id]=0;
-            if (ip_list.size()>1)
-                ip_list.erase(p);
-            else
-                ip_list.clear();
-            p=find_if(model_map[model].begin(),model_map[model].end(),
-                            [i](const InferenceProcess &ip) {return ip.ip_id==i;});
-            if (model_map[model].size()>1)
-                model_map[model].erase(p);
-            else
-                model_map.erase(model);
-        }
+        // for (auto i: expired_list){
+        //     auto p=find_if(ip_list.begin(),ip_list.end(),
+        //                     [i](const InferenceProcess& ip) {return ip.ip_id==i;});
+        //     std::string model=p->model;
+        //     kill(p->pid,SIGTERM);
+        //     GPUresources[p->allocatedGPU]+=p->pGPU;
+        //     std::atomic<int> ip_pid;
+        //     while ((ip_pid = waitpid(p->pid,NULL,0)) > 0){
+        //         console.info("Inference Process",ip_pid,"terminated due to timeout");
+        //     }
+        //     ipidTimer.erase(p->ip_id);
+        //     ip_ids[p->ip_id]=0;
+        //     if (ip_list.size()>1)
+        //         ip_list.erase(p);
+        //     else
+        //         ip_list.clear();
+        // }
         sleep(1);
     }
 }
@@ -103,9 +96,9 @@ pid_t IPManager::spawnProcess(char** arg_list, char** env)
     }
 }
 
-// Create inference process for model, with p% GPU, using NVIDIA-MPS
-void IPManager::createInferenceProcess(std::string model_name, int ip_id,int SLO){
-    int pGPU=getOptGPUpercentage(model_name,SLO);
+// Create inference process for model, with p% GPU on GPUid, using NVIDIA-MPS
+int IPManager::createInferenceProcess(std::string model_name,int ip_id, int slo, int batch_size,int service_type){
+    int pGPU=getOptGPUpercentage(model_name,slo,batch_size);
     int GPUid=chooseGPU(pGPU);
     char mps_setting[50]="CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=";
     strcat(mps_setting,std::to_string(pGPU).c_str());
@@ -116,73 +109,68 @@ void IPManager::createInferenceProcess(std::string model_name, int ip_id,int SLO
     strcpy(_model_name,model_name.c_str());
     char _gpuid[2];
     strcpy(_gpuid,std::to_string(GPUid).c_str());
-    char infer_type[10];
-    if (InferType==0)
+    char infer_type[20];
+    if (InferType==TORCH_CPP)
         strcpy(infer_type,"infer");
-    else if (InferType==1)
+    else if (InferType==TENSOR_RT)
         strcpy(infer_type,"infer_trt");
     char* args_list[]={infer_type,_model_name,ipid_str,_gpuid,NULL};
-    console.info("Create Inference Process ",ip_id," on GPU",GPUid,"with",pGPU,"%");
-    struct InferenceProcess new_ip; 
-    new_ip.ip_id=ip_id;
-    new_ip.pid = spawnProcess(args_list, env);
-    new_ip.IFtime=profiler[model_name][pGPU];
-    new_ip.model=model_name;
-    new_ip.allocatedGPU=GPUid;
-    new_ip.pGPU=pGPU;
+    console.info("Create Inference Process ",ip_id," running on GPU", GPUid,"with",pGPU,"%");
+    InferenceProcess* new_ip=new InferenceProcess; 
+    new_ip->ip_id=ip_id;
+    new_ip->pid = spawnProcess(args_list, env);
+    new_ip->rid = 0;
+    new_ip->IFtime=profiler[model_name+"_"+std::to_string(batch_size)][pGPU];
+    new_ip->model=model_name;
+    new_ip->allocatedGPU=GPUid;
+    new_ip->pGPU=pGPU;
+    new_ip->service_type=service_type;
+    // Launch worker
     ip_list.push_back(new_ip);
-    model_map[model_name].push_back(new_ip);
+    model_map[model_name+"_"+std::to_string(batch_size)].push_back(new_ip);
+    boost::thread thr(&IPManager::infer, this, ip_id);
+    ip_ids[ip_id]=1;
+    return ip_id;
 }
 
-// do inference with InferenceProcess ip_id
-int IPManager::infer(void* mem_addr,std::string base64_image, int ip_id){
-    ipidTimer[ip_id]=std::chrono::steady_clock::now();       // update timer for this IP
-    void* ip_addr=mem_addr+MEM_BLOCK*ip_id;     //determine shared memory address belong to IP
-    // Decode image, preprocess and write to shared memory
-    std::string decoded_image = base64_decode(base64_image);
-    std::vector<uchar> image_data(decoded_image.begin(), decoded_image.end());
-    cv::Mat image = cv::imdecode(image_data, cv::IMREAD_UNCHANGED);
-    image = preprocess(image, image_height, image_width, mean, std);
-    // inference
-    ip_locks[ip_id].lock();
-    memcpy(ip_addr+1,image.data,image.total() * image.elemSize());  
-    memset(ip_addr,1,1);                        // set marker byte=1  
-    char* running=static_cast<char*>(ip_addr); 
-    while (*running);                           // if marker byte ==0, then inference is finished.
-    char *_v1=static_cast<char*>(ip_addr)+1;    // get 2 bytes of result
-    char *_v2=static_cast<char*>(ip_addr)+2;
-    int v1=int(*_v1);
-    if (v1<0)
-        v1=256+v1;
-    int v2=int(*_v2);
-    if (v2<0)
-        v2=256+v2;
-    ip_locks[ip_id].unlock();
-    return v2*256+v1;
+// inference worker of InferenceProcess ip_id
+void IPManager::infer(int ip_id){
+    void* ip_addr=baseMem+MEM_BLOCK*ip_id;     //determine shared memory address belong to IP
+    sleep(2);
+    while (true){
+        while (ip_ids[ip_id] && !inference_queues[ip_id].empty()){
+            auto ir=inference_queues[ip_id].front(); // get front inference request from queue
+            memcpy(ip_addr+1,ir->data,ir->data_size);
+            memset(ip_addr,ir->batch_size,1);                        // set marker byte is first byte, first byte store the batch size
+            char* running=static_cast<char*>(ip_addr); 
+            while (*running);                           // if marker byte == 0, then inference is finished.
+            if (ip_list[ip_id]->service_type==IMAGE_CLASSIFICATION){
+                ip_list[ip_id]->outputs[ir->rid]=IC_postprocess(ip_addr,ir->batch_size);
+                ip_list[ip_id]->completed[ir->rid]=1;
+            }
+            free(ir->data);
+            delete ir;
+            inference_queues[ip_id].pop();
+        }
+        if (!ip_ids[ip_id])
+        std::terminate();
+    }
 }
 
 // Search for best fit Inference Process for the requirement
-int IPManager::searchIP(std::string model_name,int slo){
-    auto ips=model_map.find(model_name);
+int IPManager::searchIP(std::string model_name,int slo,int batch_size){
+    console.info("key:",model_name+"_"+std::to_string(batch_size));
+    auto ips=model_map.find(model_name+"_"+std::to_string(batch_size));
     int ip_id=-1;
-    if (ips==model_map.end()){
-        search_lock.lock();
-        ip_id=getAvailableIPID();
-        if (ip_id==-1){
-            return -1;
+    if (ips!=model_map.end()){
+        int mIF=0;
+        for (auto& it: ips->second){
+            if (it->IFtime<=slo && it->IFtime>mIF){
+                mIF=it->IFtime;
+                ip_id=it->ip_id;
+            }
         }
-        ip_ids[ip_id]=1;
-        createInferenceProcess(model_name,ip_id,slo);
-        search_lock.unlock();
-        return ip_id;
-    }
-    int mIF=0;
-    for (auto& it: ips->second){
-        if (it.IFtime<=slo && it.IFtime>mIF){
-            mIF=it.IFtime;
-            ip_id=it.ip_id;
-        }
-    }
+    };
     return ip_id;
 };
 
@@ -194,30 +182,46 @@ int IPManager::getAvailableIPID(){
     return -1;
 }
 
-int IPManager::handle(void* sharedMemAddr, std::string image,std::string model_name,int SLO){
+
+std::vector<int> IPManager::handle(std::vector<std::string> images,std::string model_name,int SLO, int batch_size, int service_type){
+    console.info("handle");
     if (!running){
         console.error("IPManger is not running");
-        return -1;
+        return std::vector<int>();
     }
-    int ip_id= searchIP(model_name,SLO);
+    search_lock.lock();
+    int ip_id= searchIP(model_name,SLO,batch_size);
     if (ip_id==-1){
-        console.info("System overloaded");
-        return -1;
+        ip_id=getAvailableIPID();
+        if (ip_id==-1){
+            console.error("System overloaded");
+            return std::vector<int>();
+        }
+        createInferenceProcess(model_name,ip_id,SLO,batch_size,service_type);
     }
-    else if (ip_id==-2){
-        console.info("SLO is too tight, can not generate any satisfy inference process");
-        return -1;
+    search_lock.unlock();
+    // Run model inference
+    console.info("Inference with IP",ip_id);
+    ipidTimer[ip_id]=std::chrono::steady_clock::now();       // update timer for this IP
+    inference_request* ir=new inference_request;
+    int this_rid=ip_list[ip_id]->gen_rid();
+    ir->rid=this_rid;
+    if (ip_list[ip_id]->service_type==IMAGE_CLASSIFICATION){
+        ir->data_size=IC_preprocess(&ir->data,images);
+        ir->batch_size=batch_size;
     }
-    else {
-        // Run model inference
-        console.info("Inference with IP",ip_id);
-        int pred=infer(sharedMemAddr,image,ip_id);
-        return pred;
-    }
+    else
+        console.error("Service type not supported");
+    // Push to inference queue and wait for result 
+    inference_queues[ip_id].push(ir); 
+    while (!ip_list[ip_id]->completed[this_rid]);
+    std::vector<int> preds=ip_list[ip_id]->outputs[this_rid];
+    ip_list[ip_id]->completed[this_rid]=0;
+    return preds;
 }
 
-int IPManager::getOptGPUpercentage(std::string model_name,int slo){
-    auto model_slo=profiler[model_name];
+int IPManager::getOptGPUpercentage(std::string model_name,int slo,int batch_size){
+    auto model_slo=profiler[model_name+"_"+std::to_string(batch_size)];
     int minp=100;
     for (auto& it : model_slo){
         if (it.second<=slo && it.first<minp)
@@ -243,15 +247,20 @@ int IPManager::chooseGPU(int pGPU){
     GPUresources[chosen]=GPUresources[chosen]-pGPU;
     return chosen;
 };
+
 void IPManager::setInferType(int type){
     InferType=type;
     return;
 };
 
+void IPManager::set_baseMem(void* mem_addr){
+    baseMem=mem_addr;
+    return;
+}
 IPManager::~IPManager(){
     // Kill all Inference Processes
     for (int i = 0; i < ip_list.size(); ++i) {
-        kill(ip_list[i].pid, SIGTERM);
+        kill(ip_list[i]->pid, SIGTERM);
     }
     std::atomic<int> ip_pid;
     while ((ip_pid = wait(nullptr)) > 0){

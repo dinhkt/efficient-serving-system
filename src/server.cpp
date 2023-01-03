@@ -28,6 +28,7 @@ int main(int argc, const char* argv[]) {
     signal(SIGQUIT,sig_handler);
     signal(SIGTERM,sig_handler);
     signal(SIGKILL,sig_handler);
+    signal(SIGSEGV,sig_handler);
     // Read label for image classification
     std::vector<std::string> labels;
     readImageNetlabels(labels,"../labels.txt");
@@ -51,25 +52,34 @@ int main(int argc, const char* argv[]) {
         console.error("Usage: ./server <infer_mode>\ninfer_mode=tcpp for torch c++ \ninfer_mode=trt for tensorrt ");
         return EXIT_FAILURE;
     }
+    IPMgr.set_baseMem(sharedMemAddr);
     IPMgr.run();
     //REST API by Crow 
     crow::SimpleApp app;
-    CROW_ROUTE(app, "/predict").methods("POST"_method, "GET"_method)
-    ([sharedMemAddr,&IPMgr,&labels](const crow::request& req){
+    CROW_ROUTE(app, "/process").methods("POST"_method, "GET"_method)
+    ([&IPMgr,&labels](const crow::request& req){
         crow::json::wvalue result;
         result["Prediction"] = "";
         result["Status"] = "Failed";
         std::ostringstream os;
-
         try {
             auto args = crow::json::load(req.body);
-            std::string base64_image = args["image"].s();
             std::string model_name = args["model"].s();
+            int batch_size = args["batchsize"].i();
             int SLO = args["slo"].i();
-            console.info("Received request for",model_name,",slo =",SLO);
-            int pred=IPMgr.handle(sharedMemAddr,base64_image,model_name,SLO);
-            if (pred!=-1){
-                result["Prediction"] = labels[pred];
+            std::vector<std::string> base64_images;
+            for (int i=0;i<batch_size;i++){
+                std::string img_file="image"+std::to_string(i);
+                base64_images.emplace_back(args[img_file.c_str()].s());
+            } 
+            console.info("Received request for",model_name,"batch size=",batch_size,",slo =",SLO);
+            std::vector<int> preds=IPMgr.handle(base64_images,model_name,SLO,batch_size,args["service_type"].i());
+            console.info(preds);
+            std::string res="";
+            if (preds.size()==batch_size){
+                for (int i=0;i<batch_size;i++)
+                    res = res+ labels[preds[i]]+",";
+                result["Prediction"] = res;
                 result["Status"] = "Success";
                 return crow::response{result.dump()};
             }

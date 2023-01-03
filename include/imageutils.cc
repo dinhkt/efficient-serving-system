@@ -1,5 +1,5 @@
 #include "imageutils.h"
-
+#include "consolelog.hpp"
 // Resize an image to a given size to
 cv::Mat __resize_to_a_size(cv::Mat image, int new_height, int new_width) {
 
@@ -159,3 +159,39 @@ std::vector<float> get_outputs(torch::Tensor output) {
   return probs;
 }
 
+std::vector<int> IC_postprocess(void* res,int bs){
+    std::vector<int> ret;
+    for (int i=0;i<bs;i++){
+      char *_v1=static_cast<char*>(res)+1+2*i;    // get 2 bytes of result
+      char *_v2=static_cast<char*>(res)+2+2*i;
+      int v1=int(*_v1);
+      if (v1<0)
+          v1=256+v1;
+      int v2=int(*_v2);
+      if (v2<0)
+          v2=256+v2;
+      ret.emplace_back(v2*256+v1);
+    }
+    return ret;
+}
+
+size_t IC_preprocess(void** buffer, std::vector<std::string> images){
+    int image_height = 224;
+    int image_width = 224; 
+    std::vector<double> mean = {0.485, 0.456, 0.406};
+    std::vector<double> std = {0.229, 0.224, 0.225};
+    std::vector<cv::Mat> processed_images;
+    for (const auto& _image : images){
+      std::string decoded_image = base64_decode(_image);
+      std::vector<uchar> image_data(decoded_image.begin(), decoded_image.end());
+      cv::Mat image = cv::imdecode(image_data, cv::IMREAD_UNCHANGED);
+      image = preprocess(image, image_height, image_width, mean, std);
+      processed_images.emplace_back(image);
+    } 
+    size_t img_size=processed_images[0].total()*processed_images[0].elemSize();
+    *buffer=malloc(img_size*images.size());
+    for (int i=0;i<images.size();i++){
+      memcpy(*buffer+i*img_size,processed_images[i].data,img_size);
+    }
+    return img_size*images.size();
+}

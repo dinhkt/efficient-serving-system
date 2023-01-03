@@ -2,9 +2,9 @@
 #define TRTENGINE_H
 
 #include <opencv2/opencv.hpp>
-
 #include "NvInfer.h"
 #include "buffers.h"
+#include "consolelog.hpp"
 
 // Options for the network
 struct Options {

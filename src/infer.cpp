@@ -14,22 +14,23 @@
 #include <stdio.h>
 #include "consolelog.hpp"
 
-#define MEM_BLOCK 1000000
+#define MEM_BLOCK 100000000
 using namespace boost::interprocess;
 std::string MODEL_DIR("../model_dir/");
 
-std::vector<float> get_outputs(torch::Tensor output) {
+std::vector<std::vector<float>> get_outputs(torch::Tensor output) {
   int ndim = output.ndimension();
   assert(ndim == 2);
 
   torch::ArrayRef<int64_t> sizes = output.sizes();
   int n_samples = sizes[0];
   int n_classes = sizes[1];
-
-  assert(n_samples == 1);
-
-  std::vector<float> probs(output.data_ptr<float>(),
-                                  output.data_ptr<float>() + (n_samples * n_classes));
+  std::vector<std::vector<float>> probs;
+  for (int i=0;i<n_samples;i++){
+    std::vector<float> prob(output.data_ptr<float>()+(i*n_classes),
+                                  output.data_ptr<float>() + ((i+1) * n_classes));
+    probs.emplace_back(prob);
+  }
   return probs;
 }
 
@@ -84,7 +85,6 @@ int main(int argc, const char* argv[]) {
   
   int image_height = 224;
   int image_width = 224; 
-  std::vector<int64_t> dims = {1, image_height, image_width, 3};
   std::vector<int64_t> permute_dims = {0, 3, 1, 2};
   // CUDA Timer
   auto start=at::cuda::CUDAEvent(true);
@@ -96,6 +96,8 @@ int main(int argc, const char* argv[]) {
         continue;
     else{      
         // Read Image data from shared memory to tensor
+        int bs=*mem;
+        std::vector<int64_t> dims = {bs, image_height, image_width, 3};
         torch::Tensor input_tensor;
         torch::TensorOptions options(torch::kFloat32);
         input_tensor = torch::from_blob(mem+1, torch::IntList(dims), options);
@@ -106,11 +108,12 @@ int main(int argc, const char* argv[]) {
         // end.record();
         torch::cuda::synchronize();
         // cout<<"Inference time:"<<start.elapsed_time(end)<<"ms \n";
-        std::vector<float> probs = get_outputs(output.to(at::kCPU));
-        int pred=std::distance(probs.begin(),std::max_element(probs.begin(), probs.end()));
-        // Write result to sharedBuf
-        memset(mem+1,pred & 0xff,1);
-        memset(mem+2,(pred >> 8) & 0xff,1);
+        std::vector<std::vector<float>> probs = get_outputs(output.to(at::kCPU));
+        for (int i=0;i<bs;i++){
+          int pred=std::distance(probs[i].begin(),std::max_element(probs[i].begin(), probs[i].end()));
+          memset(mem+1+2*i,pred & 0xff,1);
+          memset(mem+2+2*i,(pred >> 8) & 0xff,1);
+        }
         memset(mem, 0, 1); // set marker byte to 0
     }
   }
