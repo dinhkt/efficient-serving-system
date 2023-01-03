@@ -17,7 +17,7 @@ def send_request(model,slo,bs):
     print(json.loads(result))
     print("t:"+str(time.time()-st))
 
-for _ in range(1):
+for _ in range(10):
     t1=Thread(target=send_request,args=("resnet18",30,4))
     t1.start()
     t2=Thread(target=send_request,args=("resnet50",40,3))

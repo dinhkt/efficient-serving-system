@@ -208,7 +208,6 @@ std::vector<int> IPManager::handle(std::vector<std::string> images,std::string m
     ir->rid=this_rid;
     if (ip_list[ip_id]->service_type==IMAGE_CLASSIFICATION){
         ir->data_size=IC_preprocess(&ir->data,images);
-        console.info(ir->data_size);
         ir->batch_size=batch_size;
     }
     else
