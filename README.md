@@ -2,12 +2,11 @@
 ## Efficient Deep Learning multi-model scheduling and serving for multi-GPU system with resources provisioning
 
 Sharing multiple inference processes of DL models on a GPU
-usually leads to unpredictable inference time of each model inference. The purpose of this project is to schedule the models inference processes on a multi-GPU system based 
-on client requests and provision a GPU thread limit for each process so that the inference process of each model has least interference with each other. 
+usually leads to unpredictable inference time of each model inference. The purpose of this project is to schedule the DL models inference processes on a multi-GPU system and provision a GPU usage theshold for each process so that the inference process of each model has least interference with each other. 
 
 This work leverages NVIDIA MPS: https://docs.nvidia.com/deploy/mps/index.html. MPS supports limited execution resource provisioning, 
-or in the other words, the client contexts can be set to only use a portion of the available threads. The experiments show that, with proper provisioning settings for each model 
-on a GPU, the execution of each model doesn't interfere with the others when co-running.
+or in the other words, the client contexts can be set to only use a portion of the available GPU threads. Experiments show that, with proper provisioning settings for each MPI process 
+on a GPU, the execution of each model doesn't has much interference with the others when co-running.
 
 This project uses Crow(https://github.com/CrowCpp/Crow) for creating the HTTP web services to handle client requests. 
 
@@ -15,7 +14,7 @@ And implement 2 types of Inference for DL models: Libtorch C++ API: (https://pyt
 
 ![Architecture](architecture.png)
 ## Installation
-### Get easy with Docker container:
+### Using Docker:
   Require install docker NVIDIA toolkit in advanced: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
   
   Build image:
