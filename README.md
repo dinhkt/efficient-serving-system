@@ -18,13 +18,13 @@ And implement 2 types of Inference for DL models: Libtorch C++ API: (https://pyt
 ### Get easy with Docker container:
   Require install docker NVIDIA toolkit in advanced: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
   
-  Build container:
+  Build image:
   
   ``` docker build -t ef-serving . ```
   
   Then run the container in interactive mode with:
   
-  ``` sudo docker run --gpus all --shm-size 1G -p 8082:8082 -it ef-serving /bin/bash```
+  ``` docker run --gpus all --shm-size 1G -p 8082:8082 -it ef-serving /bin/bash```
  
 ### OR Install on host machine:
   Refer to InstallGuide.
