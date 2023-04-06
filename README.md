@@ -1,16 +1,16 @@
 # efficient-serving-system
 ## Efficient Deep Learning multi-model scheduling and serving for multi-GPU system with resources provisioning
 
-Sharing multiple inference processes of DL models on a GPU
-usually leads to unpredictable inference time of each model inference. The purpose of this project is to schedule the DL models inference processes on a multi-GPU system and provision a GPU usage theshold for each process so that the inference process of each model has least interference with each other. 
+Running multiple inference processes of DL models on a GPU without control
+usually leads to unpredictable inference time of each model inference due to sharing resources. The purpose of this project is to guarantee the reliable inference time of DL models by scheduling the DL models inference processes on a multi-GPU system and provision a GPU usage theshold for each process so that the inference process of each model has least interference with each other. 
 
 This work leverages NVIDIA MPS: https://docs.nvidia.com/deploy/mps/index.html. MPS supports limited execution resource provisioning, 
-or in the other words, the client contexts can be set to only use a portion of the available GPU threads. Experiments show that, with proper provisioning settings for each MPI process 
+,the client contexts can be set to only use a portion of the available GPU threads. Experiments show that, with proper provisioning settings for each MPI process 
 on a GPU, the execution of each model doesn't has much interference with the others when co-running.
 
 This project uses Crow(https://github.com/CrowCpp/Crow) for creating the HTTP web services to handle client requests. 
 
-And implement 2 types of Inference for DL models: Libtorch C++ API: (https://pytorch.org/cppdocs/) and NVIDIA TensorRT C++ Inference (https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#c_topics)
+And use 2 types of Inference backend for DL models: Libtorch C++: (https://pytorch.org/cppdocs/) and NVIDIA TensorRT (https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#c_topics). Current implementation support image classification models only.
 
 ![Architecture](architecture.png)
 ## Installation
@@ -23,7 +23,7 @@ And implement 2 types of Inference for DL models: Libtorch C++ API: (https://pyt
   
   Then run the container in interactive mode with:
   
-  ``` docker run --gpus all --shm-size 1G -p 8082:8082 -it ef-serving /bin/bash```
+  ``` docker run --gpus all --shm-size 10G -p 8082:8082 -it ef-serving /bin/bash```
  
 ### OR Install on host machine:
   Refer to InstallGuide.
